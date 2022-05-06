@@ -1,9 +1,20 @@
 ORG 0 ; Offsetting bootloader to 0x00 address
 BITS 16 ; Telling assembler to compile it in 16 bit mode (bootloader must be in this mode)
 
-jmp 0x7C0:start ; Jumping to correct start offset because of ORG 0
+; -------------- Start of BPB (BIOS Parameter Block) ------------
+; Some bios require this initial bytes to write configurations and, if not provided, they will overwrite bootloader program
+; ref: https://wiki.osdev.org/FAT, BPB (BIOS Parameter Block) table
+_start:
+    jmp short start
+    nop
+
+times 33 db 0 ; BPB empty section
+; -------------- End of BPB (BIOS Parameter Block) ------------
 
 start:
+    jmp 0x7C0:step2 ; Jumping to correct start offset because of ORG 0
+
+step2:
     cli ; Clear interrupts to avoid corruption problems while change data segment
     ; This steps are used to avoid errors due to previous ds (data segment memory), es (extra segment memory) ss (stack segment) and sp (stack pointer) modifications by BIOS
     mov ax, 0x7C0 ; Load 0x7C0, which is absolute address 0x7C00 in 16 bit mode
@@ -35,7 +46,7 @@ print_char:
     int 0x10 ; sending IRQ 10 to BIOS, used to display a character to the screen (VIDEO - TELETYPE OUTPUT)
     ret ; returning from function
 
-message: db 'Hello World!', 0 ; Create a char array ended with NULL character (0)
+message: db 'Boot Hello World!', 0 ; Create a char array ended with NULL character (0)
 
 times 510-($ - $$) db 0 ; Padding bin file with zero, necessary to guarantee the amount of bytes expected by the BIOS in order to find the below signature
 dw 0xAA55 ; This is boot signature, without this bios will not load this bootloader
