@@ -1,7 +1,19 @@
-ORG 0x7c00 ; Offsetting data to bootloader load address (BIOS lodas bootloader to this address)
+ORG 0 ; Offsetting bootloader to 0x00 address
 BITS 16 ; Telling assembler to compile it in 16 bit mode (bootloader must be in this mode)
 
+jmp 0x7C0:start ; Jumping to correct start offset because of ORG 0
+
 start:
+    cli ; Clear interrupts to avoid corruption problems while change data segment
+    ; This steps are used to avoid errors due to previous ds (data segment memory), es (extra segment memory) ss (stack segment) and sp (stack pointer) modifications by BIOS
+    mov ax, 0x7C0 ; Load 0x7C0, which is absolute address 0x7C00 in 16 bit mode
+    mov ds, ax ; Move data segment to ax = 0x7C00 absolute address
+    mov es, ax ; Move extra segment to ax = 0x7C00 absolute address
+    mov ax, 0x00
+    mov ss, ax ; Moving stack segment to 0x00
+    mov sp, 0x7C00 ; Moving stack pointer to 0x7C00 (absolute address)
+    sti ; Enable Interrupts again
+
     mov si, message ; moving message address to SI register
     call print ; invoke print function
     jmp $ ; jumping to itself to avoid going to next lines
