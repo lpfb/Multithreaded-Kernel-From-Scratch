@@ -1,52 +1,77 @@
-ORG 0 ; Offsetting bootloader to 0x00 address
-BITS 16 ; Telling assembler to compile it in 16 bit mode (bootloader must be in this mode)
+ORG 0x7c00
+BITS 16
 
-; -------------- Start of BPB (BIOS Parameter Block) ------------
-; Some bios require this initial bytes to write configurations and, if not provided, they will overwrite bootloader program
-; ref: https://wiki.osdev.org/FAT, BPB (BIOS Parameter Block) table
+CODE_SEG equ gdt_code - gdt_start
+DATA_SEG equ gdt_data - gdt_start
+
 _start:
     jmp short start
     nop
 
-times 33 db 0 ; BPB empty section
-; -------------- End of BPB (BIOS Parameter Block) ------------
+ times 33 db 0
 
 start:
-    jmp 0x7C0:step2 ; Jumping to correct start offset because of ORG 0
+    jmp 0:step2
 
 step2:
-    cli ; Clear interrupts to avoid corruption problems while change data segment
-    ; This steps are used to avoid errors due to previous ds (data segment memory), es (extra segment memory) ss (stack segment) and sp (stack pointer) modifications by BIOS
-    mov ax, 0x7C0 ; Load 0x7C0, which is absolute address 0x7C00 in 16 bit mode
-    mov ds, ax ; Move data segment to ax = 0x7C00 absolute address
-    mov es, ax ; Move extra segment to ax = 0x7C00 absolute address
+    cli ; Clear Interrupts
     mov ax, 0x00
-    mov ss, ax ; Moving stack segment to 0x00
-    mov sp, 0x7C00 ; Moving stack pointer to 0x7C00 (absolute address)
-    sti ; Enable Interrupts again
+    mov ds, ax
+    mov es, ax
+    mov ss, ax
+    mov sp, 0x7c00
+    sti ; Enables Interrupts
 
-    mov si, message ; moving message address to SI register
-    call print ; invoke print function
-    jmp $ ; jumping to itself to avoid going to next lines
+.load_protected:
+    cli
+    lgdt[gdt_descriptor]
+    mov eax, cr0
+    or eax, 0x1
+    mov cr0, eax ; Setting cr0 bit one
+    jmp CODE_SEG:load32
 
-print:
-    mov bx, 0 ; setting background color
-.loop:
-    lodsb ; load byte a byte the data that SI is pointing to (message in this case) into al register
-    cmp al, 0 ; check if al is equals to 0
-    je .done ; if it is equals, jump to done,otherwise go to next line
-    call print_char ; print one char
-    jmp .loop ; If we are here, there are more character to print, so start it all again
-.done:
-    ret ; returning from function
+; GDT
+gdt_start:
+gdt_null:
+    dd 0x0
+    dd 0x0
 
-print_char:
-; ref: https://ctyme.com/intr/rb-0106.htm
-    mov ah, 0eh ; command used to send data to screen
-    int 0x10 ; sending IRQ 10 to BIOS, used to display a character to the screen (VIDEO - TELETYPE OUTPUT)
-    ret ; returning from function
+; offset 0x8
+gdt_code:     ; CS SHOULD POINT TO THIS
+    dw 0xffff ; Segment limit first 0-15 bits
+    dw 0      ; Base first 0-15 bits
+    db 0      ; Base 16-23 bits
+    db 0x9a   ; Access byte
+    db 11001111b ; High 4 bit flags and the low 4 bit flags
+    db 0        ; Base 24-31 bits
 
-message: db 'Boot Hello World!', 0 ; Create a char array ended with NULL character (0)
+; offset 0x10
+gdt_data:      ; DS, SS, ES, FS, GS
+    dw 0xffff ; Segment limit first 0-15 bits
+    dw 0      ; Base first 0-15 bits
+    db 0      ; Base 16-23 bits
+    db 0x92   ; Access byte
+    db 11001111b ; High 4 bit flags and the low 4 bit flags
+    db 0        ; Base 24-31 bits
 
-times 510-($ - $$) db 0 ; Padding bin file with zero, necessary to guarantee the amount of bytes expected by the BIOS in order to find the below signature
-dw 0xAA55 ; This is boot signature, without this bios will not load this bootloader
+gdt_end:
+
+gdt_descriptor:
+    dw gdt_end - gdt_start-1 ; Size
+    dd gdt_start ; Offset
+
+[BITS 32] ; 32-bit mode
+load32:
+    mov ax, DATA_SEG
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
+    mov ebp, 0x00200000
+    mov esp, ebp
+    jmp $
+
+
+times 510-($ - $$) db 0
+dw 0xAA55
