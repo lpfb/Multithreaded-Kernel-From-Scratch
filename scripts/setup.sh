@@ -93,10 +93,20 @@ function delete_docker () {
 
 function open_docker () {
     ret=$(docker ps -a | grep $DOCKER_CONTAINER_NAME | wc -l)
+    xhost + # Enabling external connections to host x11 server
 
     if [ $ret -eq 0 ]; then
         echo -e "${BLUE}Creating container and openning it in interactive mode${NC}"
-        docker run --name $DOCKER_CONTAINER_NAME -i -t --privileged --user root --network host --env="DISPLAY" --volume="$HOME/.Xauthority:/root/.Xauthority:rw" -v $SCRIPT_ABS_PATH/../:"/home/builder" -v /media:"/media" $DOCKER_IMAGE_NAME bash -c "source /home/builder/scripts/./setup.sh -e; bash"
+        docker run --rm \
+                   --name $DOCKER_CONTAINER_NAME \
+                   -i -t --privileged \
+                   --user root \
+                   --net=host \
+                   --env="DISPLAY" \
+                   --volume="$HOME/.Xauthority:/root/.Xauthority:rw" \
+                   -v $SCRIPT_ABS_PATH/../:"/home/builder" \
+                   -v /media:"/media" $DOCKER_IMAGE_NAME \
+                   bash -c "source /home/builder/scripts/./setup.sh -e; bash"
     else
         echo -e "${BLUE}Openning container $DOCKER_CONTAINER_NAME${NC}"
         docker start -a -i $DOCKER_CONTAINER_NAME
