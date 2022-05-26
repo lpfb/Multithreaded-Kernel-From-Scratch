@@ -35,6 +35,8 @@ function help () {
     \t\tShow this help menu
     \t${BOLD}-c, --create_docker${NORMAL}
     \t\tStart docker container in interactive mode
+    \t${BOLD}-d, --download_dependences${NORMAL}
+    \t\tStart docker container in interactive mode
     \t${BOLD}-o, --open_docker${NORMAL}
     \t\tStart docker container in interactive mode
     \t${BOLD}-r, --delete_docker${NORMAL}
@@ -60,6 +62,66 @@ function set_environment_variables () {
 # =============================
 #   User available functions
 # =============================
+function download_dependences () {
+    mkdir -p -m 775 $DOWNLOADS_PATH
+    mkdir -p -m 775 $SDK_AND_COMPILER
+
+    export PREFIX="$HOME/opt/cross"
+    export TARGET=i686-elf
+    export PATH="$PREFIX/bin:$PATH"
+
+    if [ ! -d "$SDK_AND_COMPILER/binutils-2.35" ]; then
+        if [ ! -f "$DOWNLOADS_PATH/binutils-2.35.tar.xz" ]; then
+            echo -e "${YELLOW}Downloading binutils-2.35${NC}"
+            wget -P $DOWNLOADS_PATH wget https://ftp.gnu.org/gnu/binutils/binutils-2.35.tar.xz
+        fi
+
+        echo -e "${YELLOW}Extracting tarball contents${NC}"
+        tar -xvf "$DOWNLOADS_PATH/binutils-2.35.tar.xz" -C $SDK_AND_COMPILER
+
+        echo -e "${YELLOW} Installing binutils${NC}"
+        cd $SDK_AND_COMPILER
+        mkdir build-binutils
+
+        cd build-binutils
+        ../binutils-2.35/configure --target=$TARGET --prefix="$PREFIX" --with-sysroot --disable-nls --disable-werror
+        make
+        make install
+
+        cd $DOCKER_BBB_MNT
+
+    else
+        echo -e "${GREEN}binutils-2.35 already installed${NC}"
+    fi
+
+    if [ ! -d "$SDK_AND_COMPILER/gcc-10.2.0" ]; then
+        if [ ! -f "$DOWNLOADS_PATH/gcc-10.2.0.tar.gz" ]; then
+            echo -e "${YELLOW}Downloading gcc-10.2.0${NC}"
+            wget -P $DOWNLOADS_PATH wget https://bigsearcher.com/mirrors/gcc/releases/gcc-10.2.0/gcc-10.2.0.tar.gz
+        fi
+
+        echo -e "${YELLOW}Extracting tarball contents${NC}"
+        tar -xvzf "$DOWNLOADS_PATH/gcc-10.2.0.tar.gz" -C $SDK_AND_COMPILER
+
+        echo -e "${YELLOW} Installing gcc-10.2.0${NC}"
+        cd $SDK_AND_COMPILER
+
+        mkdir build-gcc
+        cd build-gcc
+
+        ../gcc-10.2.0/configure --target=$TARGET --prefix="$PREFIX" --disable-nls --enable-languages=c,c++ --without-headers
+        make all-gcc
+        make all-target-libgcc
+        make install-gcc
+        make install-target-libgcc
+
+        cd $DOCKER_BBB_MNT
+    else
+        echo -e "${GREEN}gcc-10.2.0 already installed${NC}"
+    fi
+
+}
+
 function create_docker () {
     ret=$(docker images | grep $DOCKER_IMAGE_NAME | wc -l)
 
@@ -135,16 +197,20 @@ do
 key="$1"
 
 case $key in
-    -h|--help)
-        help
+    -c|--create_docker)
+        create_docker
+        break
+    ;;
+    -d|--download_dependences)
+        download_dependences
         break
     ;;
     -e|--set_environment_variables)
         set_environment_variables
         break
     ;;
-    -c|--create_docker)
-        create_docker
+    -h|--help)
+        help
         break
     ;;
     -o|--open_docker)

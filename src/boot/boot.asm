@@ -70,6 +70,13 @@ load32:
     mov ss, ax
     mov ebp, 0x00200000
     mov esp, ebp
+
+    ; Enabling A20 mode to acces more memory
+    ; ref: https://www.win.tue.nl/~aeb/linux/kbd/A20.html - A20 control via System Control Port A
+    in al, 0x92 ; Read System Control Port A content
+    or al, 2 ; Seting bit 1 to '1' to enable A20
+    out 0x92, al ; Enabling A20 mode by loading 0x92 with bit 1 setted
+
     jmp $
 
 
