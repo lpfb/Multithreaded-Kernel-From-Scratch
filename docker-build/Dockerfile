@@ -2,8 +2,6 @@ FROM debian:stable
 
 MAINTAINER "lpfb"
 
-RUN sed -i '/jessie-updates/d' /etc/apt/sources.list  # Now archived
-
 # Install docker dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
