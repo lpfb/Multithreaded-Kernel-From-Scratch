@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y \
     git \
     wget \
     tmux \
+    bless \
     iputils-ping
 
 # Create a user and group used to launch processes

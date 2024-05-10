@@ -1,14 +1,14 @@
-ORG 0x7c00
-BITS 16
+ORG 0 ; Poiting to DDR start
+BITS 16 ; BIOS only works in 16 bits mode
 
 CODE_SEG equ gdt_code - gdt_start
 DATA_SEG equ gdt_data - gdt_start
 
 _start:
-    jmp short start
+    jmp short start ; BIOS jumps this region
     nop
 
- times 33 db 0
+ times 33 db 0 ; Create 33 empty bytes to avoid possible boot app corruption caused by some BIOS parameter block
 
 start:
     jmp 0:step2
