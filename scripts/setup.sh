@@ -39,6 +39,8 @@ function help () {
     \t\tStart docker container in interactive mode
     \t${BOLD}-o, --open_docker${NORMAL}
     \t\tStart docker container in interactive mode
+    \t${BOLD}-e, --set_environment_variables${NORMAL}
+    \t\tSet environment variables
     \t${BOLD}-r, --delete_docker${NORMAL}
     \t\tRemove docker image and container
     \t${BOLD}-x, --cleanup${NORMAL}
@@ -52,11 +54,10 @@ function help () {
 
 # Set environment variables to be used inside docker
 function set_environment_variables () {
-    ret=$(pwd)
-    #
-    # export ARMGCC_DIR="$SDK_AND_COMPILER/gcc-arm-none-eabi-10.3-2021.10"
-    # export KL25Z_SDK_PATH="$SDK_AND_COMPILER/kl25z-sdk"
-    # export PATH="$PATH:$SCRIPT_ABS_PATH:$ARMGCC_DIR/bin"
+    # Cross compiler and link script variables
+    export PREFIX=$SDK_AND_COMPILER
+    export TARGET=i686-elf
+    export PATH="$PREFIX/bin:$PATH"
 }
 
 # =============================
@@ -66,7 +67,7 @@ function download_dependences () {
     mkdir -p -m 775 $DOWNLOADS_PATH
     mkdir -p -m 775 $SDK_AND_COMPILER
 
-    export PREFIX="$HOME/opt/cross"
+    export PREFIX="$SDK_AND_COMPILER"
     export TARGET=i686-elf
     export PATH="$PREFIX/bin:$PATH"
 
@@ -120,6 +121,10 @@ function download_dependences () {
         echo -e "${GREEN}gcc-10.2.0 already installed${NC}"
     fi
 
+    export PREFIX="$HOME/opt/cross"
+    export TARGET=i686-elf
+    export PATH="$PREFIX/bin:$PATH"
+
 }
 
 function create_docker () {
@@ -168,7 +173,7 @@ function open_docker () {
                    --volume="$HOME/.Xauthority:/root/.Xauthority:rw" \
                    -v $SCRIPT_ABS_PATH/../:"/home/builder" \
                    -v /media:"/media" $DOCKER_IMAGE_NAME \
-                   bash -c "source /home/builder/scripts/./setup.sh -e; bash"
+                   bash -c "source /home/builder/scripts/setup.sh -e; bash"
     else
         echo -e "${BLUE}Openning container $DOCKER_CONTAINER_NAME${NC}"
         docker start -a -i $DOCKER_CONTAINER_NAME
