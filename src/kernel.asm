@@ -20,3 +20,6 @@ _start:
     out 0x92, al
 
     jmp $
+
+; Used to avoid alignment problems with C code
+times 512-($ - $$) db 0

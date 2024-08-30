@@ -5,6 +5,7 @@ MAINTAINER "lpfb"
 # Install docker dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
+    gdb \
     g++ \
     bison \
     flex \

@@ -1,15 +1,15 @@
-ORG 0 ; Poiting to DDR start
-BITS 16 ; BIOS only works in 16 bits mode
+ORG 0x7c00
+BITS 16
 
 CODE_SEG equ gdt_code - gdt_start
 DATA_SEG equ gdt_data - gdt_start
 
 _start:
-    jmp short start ; BIOS jumps this region
+    jmp short start
     nop
 
- times 33 db 0 ; Create 33 empty bytes to avoid possible boot app corruption caused by some BIOS parameter block
-
+ times 33 db 0
+ 
 start:
     jmp 0:step2
 
@@ -27,9 +27,9 @@ step2:
     lgdt[gdt_descriptor]
     mov eax, cr0
     or eax, 0x1
-    mov cr0, eax ; Setting cr0 bit one
+    mov cr0, eax
     jmp CODE_SEG:load32
-
+    
 ; GDT
 gdt_start:
 gdt_null:
@@ -57,28 +57,75 @@ gdt_data:      ; DS, SS, ES, FS, GS
 gdt_end:
 
 gdt_descriptor:
-    dw gdt_end - gdt_start-1 ; Size
-    dd gdt_start ; Offset
+    dw gdt_end - gdt_start-1
+    dd gdt_start
+ 
+ [BITS 32]
+ load32:
+    mov eax, 1
+    mov ecx, 100
+    mov edi, 0x0100000
+    call ata_lba_read
+    jmp CODE_SEG:0x0100000
 
-[BITS 32] ; 32-bit mode
-load32:
-    mov ax, DATA_SEG
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-    mov ss, ax
-    mov ebp, 0x00200000
-    mov esp, ebp
+ata_lba_read:
+    mov ebx, eax, ; Backup the LBA
+    ; Send the highest 8 bits of the lba to hard disk controller
+    shr eax, 24
+    or eax, 0xE0 ; Select the  master drive
+    mov dx, 0x1F6
+    out dx, al
+    ; Finished sending the highest 8 bits of the lba
 
-    ; Enabling A20 mode to acces more memory
-    ; ref: https://www.win.tue.nl/~aeb/linux/kbd/A20.html - A20 control via System Control Port A
-    in al, 0x92 ; Read System Control Port A content
-    or al, 2 ; Seting bit 1 to '1' to enable A20
-    out 0x92, al ; Enabling A20 mode by loading 0x92 with bit 1 setted
+    ; Send the total sectors to read
+    mov eax, ecx
+    mov dx, 0x1F2
+    out dx, al
+    ; Finished sending the total sectors to read
 
-    jmp $
+    ; Send more bits of the LBA
+    mov eax, ebx ; Restore the backup LBA
+    mov dx, 0x1F3
+    out dx, al
+    ; Finished sending more bits of the LBA
 
+    ; Send more bits of the LBA
+    mov dx, 0x1F4
+    mov eax, ebx ; Restore the backup LBA
+    shr eax, 8
+    out dx, al
+    ; Finished sending more bits of the LBA
+
+    ; Send upper 16 bits of the LBA
+    mov dx, 0x1F5
+    mov eax, ebx ; Restore the backup LBA
+    shr eax, 16
+    out dx, al
+    ; Finished sending upper 16 bits of the LBA
+
+    mov dx, 0x1f7
+    mov al, 0x20
+    out dx, al
+
+    ; Read all sectors into memory
+.next_sector:
+    push ecx
+
+; Checking if we need to read
+.try_again:
+    mov dx, 0x1f7
+    in al, dx
+    test al, 8
+    jz .try_again
+
+; We need to read 256 words at a time
+    mov ecx, 256
+    mov dx, 0x1F0
+    rep insw
+    pop ecx
+    loop .next_sector
+    ; End of reading sectors into memory
+    ret
 
 times 510-($ - $$) db 0
 dw 0xAA55
