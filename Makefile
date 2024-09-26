@@ -21,6 +21,9 @@ all: ./bin/boot.bin ./bin/kernel.bin
 ./build/kernel.o: ./src/kernel.c
 	i686-elf-gcc $(INCLUDES) $(FLAGS) -std=gnu99 -c ./src/kernel.c -o ./build/kernel.o
 
+exec:
+	qemu-system-x86_64 -hda ./bin/os.bin
+
 clean:
 	rm -rf ./bin/boot.bin
 	rm -rf ./bin/kernel.bin
