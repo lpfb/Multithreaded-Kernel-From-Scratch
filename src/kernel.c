@@ -1,6 +1,7 @@
 #include "kernel.h"
 #include <stdint.h>
 #include <stddef.h>
+#include "idt/idt.h"
 
 uint16_t *video_mem = 0; // Addres of TEXT MODE screen
 uint16_t terminal_row = 0;
@@ -63,6 +64,8 @@ void print(const char *str) {
 void kernel_main()
 {
     terminal_initialize();
-    print("Testando o \nprint\n");
-    print("Secound line!");
+    print("Hello World\n");
+
+    // Initialize the interrupt descriptor table
+    idt_init();
 }
